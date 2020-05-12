@@ -35,4 +35,43 @@ kmeans.fit(df_user[['Recency']])
 df_user['RecencyCluster'] = kmeans.predict(df_user[['Recency']])
 df_user = order_cluster('RecencyCluster', 'Recency',df_user,False)
 
+Frequency = m3.groupby('CustomerID').InvoiceDate.count().reset_index()
+Frequency.columns = ['CustomerID','Frequency']
+df_user = pd.merge(df_user, Frequency, on='CustomerID')
 
+kmeans = KMeans(n_clusters=4,init='k-means++')
+kmeans.fit(df_user[['Frequency']])
+df_user['FrequencyCluster'] = kmeans.predict(df_user[['Frequency']])
+df_user = order_cluster('FrequencyCluster', 'Frequency',df_user,False)
+
+m3['Monetary'] = m3['UnitPrice'] * m3['Quantity']
+Revenue = m3.groupby('CustomerID').Monetary.sum().reset_index()
+df_user = pd.merge(df_user, Revenue, on='CustomerID')
+
+kmeans = KMeans(n_clusters=4)
+kmeans.fit(df_user[['Monetary']])
+df_user['MonetaryCluster'] = kmeans.predict(df_user[['Monetary']])
+df_user = order_cluster('MonetaryCluster', 'Monetary',df_user,True)
+
+df_user['OverallScore'] = df_user['RecencyCluster'] + df_user['FrequencyCluster'] + df_user['MonetaryCluster']
+df_user['Segment'] = 'Low-Value'
+df_user.loc[df_user['OverallScore']>2,'Segment'] = 'Mid-Value' 
+df_user.loc[df_user['OverallScore']>4,'Segment'] = 'High-Value'
+
+m6['Monetary'] = m6['UnitPrice'] * m6['Quantity']
+df_user_6m = m6.groupby('CustomerID')['Monetary'].sum().reset_index()
+df_user_6m.columns = ['CustomerID','m6_Monetary']
+
+df_merge = pd.merge(df_user, df_user_6m, on='CustomerID', how='left')
+df_merge =df_merge.fillna(0)
+
+
+corr= df_merge.corr(method='pearson')
+
+df_merge = df_merge[df_merge['m6_Monetary'] < df_merge['m6_Monetary'].quantile(0.99)]
+kmeans = KMeans(n_clusters=3,init='k-means++')
+kmeans.fit(df_merge[['m6_Monetary']])
+df_merge['LTVCluster'] = kmeans.predict(df_merge[['m6_Monetary']])
+df_merge = order_cluster('LTVCluster', 'm6_Monetary',df_merge,True)
+df_cluster = df_merge.copy()
+df_cluster.groupby('LTVCluster')['m6_Monetary'].describe()
