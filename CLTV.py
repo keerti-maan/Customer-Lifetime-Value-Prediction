@@ -75,3 +75,35 @@ df_merge['LTVCluster'] = kmeans.predict(df_merge[['m6_Monetary']])
 df_merge = order_cluster('LTVCluster', 'm6_Monetary',df_merge,True)
 df_cluster = df_merge.copy()
 df_cluster.groupby('LTVCluster')['m6_Monetary'].describe()
+
+
+from sklearn.model_selection import train_test_split
+
+df_class = pd.get_dummies(df_cluster)
+
+corr_matrix= df_class.corr(method='pearson')
+X = df_class.drop(['LTVCluster','m6_Monetary'],axis=1)
+y = df_class['LTVCluster']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+#############################################################################################################
+
+import xgboost as xgb
+from sklearn.metrics import classification_report,confusion_matrix
+from xgboost import XGBClassifier    
+xgb_model = xgb.XGBClassifier(max_depth=5, learning_rate=0.1,objective= 'multi:softprob',n_jobs=-1).fit(X_train, y_train)
+
+print('Accuracy of XGB classifier on training set: {:.2f}'
+         .format(xgb_model.score(X_train, y_train)))
+print('*'*60)
+
+print('Accuracy of XGB classifier on test set: {:.2f}'
+        .format(xgb_model.score(X_test[X_train.columns], y_test)))
+print('*'*60)
+
+y_pred = xgb_model.predict(X_test)
+
+print(classification_report(y_test, y_pred))
+
+
