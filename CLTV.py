@@ -88,7 +88,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 
 #############################################################################################################
-
+##### XGBoost
 import xgboost as xgb
 from sklearn.metrics import classification_report,confusion_matrix
 from xgboost import XGBClassifier    
@@ -104,6 +104,33 @@ print('*'*60)
 
 y_pred = xgb_model.predict(X_test)
 
+print(classification_report(y_test, y_pred))
+
+################################################################################
+### ANN
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+
+ 
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.utils import to_categorical
+
+classifier = Sequential()
+classifier.add(Dense(output_dim = 8, init = 'uniform', activation = 'relu', input_dim = 11))
+classifier.add(Dense(output_dim = 8, init = 'uniform', activation = 'relu'))
+classifier.add(Dense(output_dim = 8, init = 'uniform', activation = 'relu'))
+classifier.add(Dense(output_dim = 3, init = 'uniform', activation = 'softmax'))
+categorical_labels = to_categorical(y_train, num_classes=3)
+classifier.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+classifier.fit(X_train, categorical_labels, batch_size = 32, nb_epoch = 200)
+y_pred = classifier.predict(X_test)
+y_pred=np.argmax(y_pred, axis=1)
+
+cm=confusion_matrix(y_test,y_pred)
 print(classification_report(y_test, y_pred))
 
 
