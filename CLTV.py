@@ -7,7 +7,43 @@ df=pd.read_excel('Online Retail.xlsx')
 df['InvoiceDate']=pd.to_datetime(df['InvoiceDate'])
 
 df_uk=df.query("Country=='United Kingdom'").reset_index(drop=True)
+## New customer Ratio
+min_purchase = df_uk.groupby('CustomerID').InvoiceDate.min().reset_index()
+min_purchase.columns = ['CustomerID','MinPurchaseDate']
+min_purchase['MinPurchaseYearMonth'] = min_purchase['MinPurchaseDate'].map(lambda date: 100*date.year + date.month)
 
+df_uk = pd.merge(df_uk, min_purchase, on='CustomerID')
+df_uk.head()
+
+df_uk['UserType'] = 'New'
+df_uk.loc[df_uk['InvoiceYearMonth'] > df_uk['MinPurchaseYearMonth'],'UserType'] = 'Existing'
+
+user_type_monetary = df_uk.groupby(['InvoiceYearMonth','UserType'])['Monetary'].sum().reset_index()
+
+user_ratio = df_uk.query("UserType == 'New'").groupby(['InvoiceYearMonth'])['CustomerID'].nunique() / df_uk.query("UserType == 'Existing'").groupby(['InvoiceYearMonth'])['CustomerID'].nunique() 
+user_ratio = user_ratio.reset_index()
+user_ratio = user_ratio.dropna()
+user_ratio
+
+## monthly retention rate
+user_purchase = df_uk.groupby(['CustomerID','InvoiceYearMonth'])['Monetary'].sum().reset_index()
+retention = pd.crosstab(user_purchase['CustomerID'], user_purchase['InvoiceYearMonth']).reset_index()
+retention.head()
+months = retention.columns[2:]
+retention_array = []
+
+for i in range(len(months)-1):
+    retention_data = {}
+    selected_month = months[i+1]
+    prev_month = months[i]
+    retention_data['InvoiceYearMonth'] = int(selected_month)
+    retention_data['TotalUserCount'] = retention[selected_month].sum()
+    retention_data['RetainedUserCount'] = retention[(retention[selected_month] > 0) & (retention[prev_month] > 0)][selected_month].sum()
+    retention_array.append(retention_data)
+retention = pd.DataFrame(retention_array)
+retention['RetentionRate'] = retention['RetainedUserCount'] / retention['TotalUserCount']
+
+## RFM
 m3 = df_uk[(df_uk.InvoiceDate <pd.Timestamp(2011,6,1)) & (df_uk.InvoiceDate >= pd.Timestamp(2011,3,1))].reset_index(drop=True)
 m6 = df_uk[(df_uk.InvoiceDate <pd.Timestamp(2011,12,1)) & (df_uk.InvoiceDate >pd.Timestamp(2011,6,1))].reset_index(drop=True)
 
